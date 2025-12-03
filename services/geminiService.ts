@@ -1,28 +1,40 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { AnalysisResult, AIDetectionResult, GroundingChunk } from "../types";
 
+// ✅ Read API key from Vite env (works in browser)
+const API_KEY = import.meta.env.VITE_VERIHOW_APP as string | undefined;
+
+if (!API_KEY) {
+  console.error("VITE_VERIHOW_APP is not set in the environment.");
+}
+
+// Small helper so we don’t repeat client creation
+const getClient = () => {
+  if (!API_KEY) {
+    throw new Error("VITE_VERIHOW_APP is not set");
+  }
+  return new GoogleGenAI({ apiKey: API_KEY });
+};
+
 // --- Fact Check Parser ---
-const parseFactCheckResponse = (text: string): { 
-  verdict: string, 
-  score: number, 
-  body: string
-} => {
+const parseFactCheckResponse = (
+  text: string
+): { verdict: string; score: number; body: string } => {
   const verdictMatch = text.match(/VERDICT:\s*([A-Z]+)/i);
   const scoreMatch = text.match(/SCORE:\s*(\d+)/i);
-  
-  let verdict = 'UNVERIFIED';
+
+  let verdict = "UNVERIFIED";
   let score = 50;
   let body = text;
 
   if (verdictMatch) {
     verdict = verdictMatch[1].toUpperCase();
-    body = body.replace(verdictMatch[0], '');
+    body = body.replace(verdictMatch[0], "");
   }
-  
+
   if (scoreMatch) {
     score = parseInt(scoreMatch[1], 10);
-    body = body.replace(scoreMatch[0], '');
+    body = body.replace(scoreMatch[0], "");
   }
 
   return { verdict, score, body: body.trim() };
@@ -34,31 +46,41 @@ const parseAIDetectionResponse = (text: string): AIDetectionResult => {
   const verdictMatch = text.match(/AI_VERDICT:\s*([A-Z\s]+)/i);
 
   let score = 0;
-  let verdict = 'UNCLEAR';
+  let verdict = "UNCLEAR";
   let analysis = text;
 
   if (scoreMatch) {
     score = parseInt(scoreMatch[1], 10);
-    analysis = analysis.replace(scoreMatch[0], '');
+    analysis = analysis.replace(scoreMatch[0], "");
   }
 
   if (verdictMatch) {
     verdict = verdictMatch[1].toUpperCase().trim();
-    analysis = analysis.replace(verdictMatch[0], '');
+    analysis = analysis.replace(verdictMatch[0], "");
   }
 
-  return { score, verdict: verdict as AIDetectionResult['verdict'], analysis: analysis.trim() };
+  return {
+    score,
+    verdict: verdict as AIDetectionResult["verdict"],
+    analysis: analysis.trim(),
+  };
 };
 
 // --- API Service: Fact Check ---
-export const analyzeCredibility = async (content: string, imageData?: string): Promise<AnalysisResult> => {
+export const analyzeCredibility = async (
+  content: string,
+  imageData?: string
+): Promise<AnalysisResult> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = getClient();
     const parts: any[] = [];
-    
+
     if (imageData) {
-      const base64Data = imageData.split(',')[1];
-      const mimeType = imageData.substring(imageData.indexOf(':') + 1, imageData.indexOf(';'));
+      const base64Data = imageData.split(",")[1];
+      const mimeType = imageData.substring(
+        imageData.indexOf(":") + 1,
+        imageData.indexOf(";")
+      );
       parts.push({ inlineData: { mimeType, data: base64Data } });
     }
 
@@ -108,21 +130,26 @@ export const analyzeCredibility = async (content: string, imageData?: string): P
     parts.push({ text: promptText });
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: "gemini-2.5-flash",
       contents: { parts },
-      config: { 
+      config: {
         temperature: 0.1, // Lower temperature for factual precision
-        tools: [{ googleSearch: {} }] 
-      }
+        tools: [{ googleSearch: {} }],
+      },
     });
 
     const responseText = response.text || "No analysis generated.";
     const { verdict, score, body } = parseFactCheckResponse(responseText);
 
-    const groundingChunks: GroundingChunk[] = 
+    const groundingChunks: GroundingChunk[] =
       response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
 
-    return { verdict: verdict as any, score, explanation: body, groundingChunks };
+    return {
+      verdict: verdict as any,
+      score,
+      explanation: body,
+      groundingChunks,
+    };
   } catch (error) {
     console.error("Gemini API Error (Fact Check):", error);
     throw error;
@@ -130,11 +157,16 @@ export const analyzeCredibility = async (content: string, imageData?: string): P
 };
 
 // --- API Service: AI Image Detection ---
-export const detectAIImage = async (imageData: string): Promise<AIDetectionResult> => {
+export const detectAIImage = async (
+  imageData: string
+): Promise<AIDetectionResult> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-    const base64Data = imageData.split(',')[1];
-    const mimeType = imageData.substring(imageData.indexOf(':') + 1, imageData.indexOf(';'));
+    const ai = getClient();
+    const base64Data = imageData.split(",")[1];
+    const mimeType = imageData.substring(
+      imageData.indexOf(":") + 1,
+      imageData.indexOf(";")
+    );
 
     const prompt = `
     Act as a specialist in synthetic media detection and computer vision.
@@ -160,13 +192,13 @@ export const detectAIImage = async (imageData: string): Promise<AIDetectionResul
     `;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash', 
+      model: "gemini-2.5-flash",
       contents: {
         parts: [
           { inlineData: { mimeType, data: base64Data } },
-          { text: prompt }
-        ]
-      }
+          { text: prompt },
+        ],
+      },
     });
 
     const responseText = response.text || "Analysis failed.";
@@ -177,15 +209,19 @@ export const detectAIImage = async (imageData: string): Promise<AIDetectionResul
   }
 };
 
-export const translateContent = async (content: string, targetLanguage: string): Promise<string> => {
+// --- API Service: Translate ---
+export const translateContent = async (
+  content: string,
+  targetLanguage: string
+): Promise<string> => {
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = getClient();
     const prompt = `Translate the following Markdown text into ${targetLanguage}. Preserve formatting exactly.
     Original Text:
     ${content}`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: "gemini-2.5-flash",
       contents: prompt,
     });
 
