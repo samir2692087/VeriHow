@@ -43,7 +43,7 @@ VeriHow is an automated analysis tool powered by Google's Gemini 2.5 architectur
 
 const PRIVACY_POLICY_CONTENT = `
 ### Privacy Policy
-**Last Updated**: October 2023
+**Last Updated**: 8 December 2025
 
 Your privacy is our top priority. VeriHow is engineered with a **"Privacy-First"** architecture that ensures your data remains under your control. This policy outlines how we handle your information.
 
