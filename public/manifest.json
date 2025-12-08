@@ -2,13 +2,13 @@
   "id": "/",
   "name": "VeriHow",
   "short_name": "VeriHow",
-  "description": "VeriHow is a forensic intelligence engine for fact-checking and AI-generated media detection.",
+  "description": "VeriHow is a forensic intelligence engine for multilingual fact checking.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#000000",
-  "theme_color": "#020714",
+  "theme_color": "#000000",
   "icons": [
     {
       "src": "/logo.png",
