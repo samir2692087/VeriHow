@@ -1,1 +1,5 @@
-
+{
+  "name": "VeriHow",
+  "description": "VeriHow is an advanced fact-checking tool supporting text and image analysis across English and all scheduled Indian languages using Gemini 2.5.",
+  "requestFramePermissions": []
+}
