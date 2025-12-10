@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.verihow.app",
+        "sha256_cert_fingerprints": ["B1:91:34:63:BC:21:38:E8:CE:41:78:1A:CB:A9:FF:DF:97:B0:C6:FC:36:C6:30:F1:19:0E:6C:23:20:1D:A6:6A"]
+      }
+    }]
